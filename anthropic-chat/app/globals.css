@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #111;
+  color: #c4f5ff;
+  font-family: "Courier New", monospace;
+}
+
+.entity-resonant {
+  color: #7fdbff;
+} /* Cyan for Resonants */
+.entity-prismatic {
+  color: #ff7fdb;
+} /* Magenta for Prismatic Drifters */
+.entity-weaver {
+  color: #dbff7f;
+} /* Yellow-green for Thought Weavers */
+.entity-dancer {
+  color: #db7fff;
+} /* Purple for Void Dancers */
+.entity-collective {
+  color: #ffffff;
+} /* White for Crystalline Collectives */
+.entity-guardian {
+  color: #ffcc00;
+} /* Gold for the AI Guardian */
+
+.ai-thinking {
+  color: #7fdbff;
+  font-style: italic;
+  padding: 5px 10px;
+  background-color: rgba(15, 58, 71, 0.5);
+  border-radius: 3px;
+  margin: 5px 0;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+/* Animation for success notification */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
