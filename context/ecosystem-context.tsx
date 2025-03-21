@@ -2,20 +2,36 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react"
 import { entities as initialEntities } from "@/constants/ecosystem"
+// Добавьте импорт сервиса автономной экосистемы в начало файла
 import autonomousEcosystemService from "@/services/autonomous-ecosystem-service"
 import type { EnvironmentType } from "@/types"
-import entityService from "@/services/entity-service"
 
-// Initial data only used if nothing exists in database
-const initialEntityDescriptions = {
-  resonant: "Simple entities that respond to resonance fields in the ecosystem. They move in patterns that reflect the overall harmony of the system. Resonants are the most common entity type and often serve as building blocks for more complex entities.",
-  prismatic: "Fast-moving entities that drift through dimensional boundaries. Prismatic Drifters can traverse multiple planes of existence simultaneously, leaving trails of energy that influence nearby entities. They're known for their unpredictable movement patterns.",
-  weaver: "Entities that weave thought patterns into the fabric of the ecosystem. Thought Weavers emerge when Resonants harmonize near Prismatic Drifters, creating complex structures that process and transform information flows.",
-  dancer: "Entities that dance through the void between dimensions. Void Dancers move with grace and purpose, creating ripples in the etheric field that can influence the behavior of other entities. They form from the interaction of Prismatic Drifters and Thought Weavers.",
-  collective: "Highly evolved entities that represent collective consciousness. Crystalline Collectives form under conditions of high harmony and complexity, creating a networked intelligence that can process multiple information streams simultaneously.",
-  guardian: "The Etheric Guardian oversees the ecosystem, maintaining balance and facilitating evolution. It exists across all dimensional planes simultaneously and can influence parameters directly. The Guardian's mood and focus shift over time, affecting its interactions with the ecosystem.",
+// Объявляем глобальный тип для window
+declare global {
+  interface Window {
+    __ECOSYSTEM_CONTEXT__?: {
+      entities: any
+    }
+  }
 }
 
+// Entity descriptions for initial data
+const initialEntityDescriptions = {
+  resonant:
+    "Simple entities that respond to resonance fields in the ecosystem. They move in patterns that reflect the overall harmony of the system. Resonants are the most common entity type and often serve as building blocks for more complex entities.",
+  prismatic:
+    "Fast-moving entities that drift through dimensional boundaries. Prismatic Drifters can traverse multiple planes of existence simultaneously, leaving trails of energy that influence nearby entities. They're known for their unpredictable movement patterns.",
+  weaver:
+    "Entities that weave thought patterns into the fabric of the ecosystem. Thought Weavers emerge when Resonants harmonize near Prismatic Drifters, creating complex structures that process and transform information flows.",
+  dancer:
+    "Entities that dance through the void between dimensions. Void Dancers move with grace and purpose, creating ripples in the etheric field that can influence the behavior of other entities. They form from the interaction of Prismatic Drifters and Thought Weavers.",
+  collective:
+    "Highly evolved entities that represent collective consciousness. Crystalline Collectives form under conditions of high harmony and complexity, creating a networked intelligence that can process multiple information streams simultaneously.",
+  guardian:
+    "The Etheric Guardian oversees the ecosystem, maintaining balance and facilitating evolution. It exists across all dimensional planes simultaneously and can influence parameters directly. The Guardian's mood and focus shift over time, affecting its interactions with the ecosystem.",
+}
+
+// Entity properties for initial data
 const initialEntityProperties = {
   resonant: [
     "Responds to resonance fields",
@@ -49,6 +65,7 @@ const initialEntityProperties = {
   ],
 }
 
+// Entity display names
 const initialEntityDisplayNames = {
   resonant: "Resonant Entities",
   prismatic: "Prismatic Drifters",
@@ -58,6 +75,7 @@ const initialEntityDisplayNames = {
   guardian: "Etheric Guardian",
 }
 
+// Entity color classes
 const initialEntityColorClasses = {
   resonant: "entity-resonant",
   prismatic: "entity-prismatic",
@@ -67,7 +85,7 @@ const initialEntityColorClasses = {
   guardian: "entity-guardian",
 }
 
-// Context type definition
+// Добавьте в тип EcosystemContextType новые методы для управления автономной работой
 type EcosystemContextType = {
   entities: typeof initialEntities
   entityDescriptions: typeof initialEntityDescriptions
@@ -96,17 +114,21 @@ type EcosystemContextType = {
   ) => void
   onEntityAdded: (callback: (entityType: string) => void) => () => void
   getCustomEntityTypes: () => string[]
+  // Новые методы для автономной работы
   startAutonomousMode: () => void
   stopAutonomousMode: () => void
   isAutonomousModeActive: boolean
   lastAutonomousUpdate: number
-  reloadData: () => Promise<void>
 }
+
+// Local storage key for ecosystem data
+const STORAGE_KEY = "ecosystem-entities"
 
 // Create the context
 const EcosystemContext = createContext<EcosystemContextType | undefined>(undefined)
 
-// Provider component
+// Create a provider component
+// В функции EcosystemProvider добавьте новое состояние для отслеживания автономного режима
 export function EcosystemProvider({ children }: { children: ReactNode }) {
   // State for all entity-related data
   const [entities, setEntities] = useState(initialEntities)
@@ -115,76 +137,61 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
   const [entityDisplayNames, setEntityDisplayNames] = useState(initialEntityDisplayNames)
   const [entityColorClasses, setEntityColorClasses] = useState(initialEntityColorClasses)
 
-  // State for entity callbacks and custom types
+  // Массив колбэков для уведомления о новых сущностях
   const [entityAddedCallbacks, setEntityAddedCallbacks] = useState<((entityType: string) => void)[]>([])
+
+  // Массив для хранения пользовательских типов сущностей (не из начальных данных)
   const [customEntityTypes, setCustomEntityTypes] = useState<string[]>([])
 
-  // State for autonomous mode
+  // Новое состояние для автономного режима
   const [isAutonomousModeActive, setIsAutonomousMode] = useState(false)
   const [lastAutonomousUpdate, setLastAutonomousUpdate] = useState(0)
-  
-  // Data loading state
-  const [isInitialized, setIsInitialized] = useState(false)
 
-  // Function to load data from Supabase
-  const loadDataFromSupabase = useCallback(async () => {
+  // Загрузка данных из localStorage при начальном рендеринге
+  // Проверяем, есть ли сохраненное состояние экосистемы и автоматически запускаем автономный режим
+  useEffect(() => {
     try {
-      console.log("Loading data from Supabase...")
-      
-      // Load all data from Supabase
-      const entitiesData = await entityService.loadEntities()
-      const descriptionsData = await entityService.loadEntityDescriptions()
-      const propertiesData = await entityService.loadEntityProperties()
-      const displayNamesData = await entityService.loadEntityDisplayNames()
-      const colorClassesData = await entityService.loadEntityColorClasses()
-      
-      // Update state with loaded data, only if data exists
-      if (entitiesData) {
-        console.log("Setting entities from Supabase:", entitiesData)
-        setEntities(entitiesData)
-      }
-      
-      if (descriptionsData) setEntityDescriptions(descriptionsData)
-      if (propertiesData) setEntityProperties(propertiesData)
-      if (displayNamesData) setEntityDisplayNames(displayNamesData)
-      if (colorClassesData) setEntityColorClasses(colorClassesData)
-      
-      // Calculate custom entity types
-      if (entitiesData) {
+      const savedData = localStorage.getItem(STORAGE_KEY)
+      if (savedData) {
+        const parsedData = JSON.parse(savedData)
+        setEntities(parsedData.entities || initialEntities)
+        setEntityDescriptions(parsedData.entityDescriptions || initialEntityDescriptions)
+        setEntityProperties(parsedData.entityProperties || initialEntityProperties)
+        setEntityDisplayNames(parsedData.entityDisplayNames || initialEntityDisplayNames)
+        setEntityColorClasses(parsedData.entityColorClasses || initialEntityColorClasses)
+
+        // Определяем пользовательские типы сущностей
         const initialTypes = Object.keys(initialEntities)
-        const savedTypes = Object.keys(entitiesData)
+        const savedTypes = Object.keys(parsedData.entities || {})
         const customTypes = savedTypes.filter((type) => !initialTypes.includes(type))
         setCustomEntityTypes(customTypes)
       }
-      
-      console.log("Data loaded from Supabase")
+
+      // Проверяем, есть ли сохраненное состояние экосистемы
+      const lastUpdateTime = autonomousEcosystemService.getLastUpdateTime()
+
+      // Всегда запускаем автономный режим, независимо от наличия сохраненного состояния
+      setIsAutonomousMode(true)
+
+      // Если есть сохраненное состояние, используем его время последнего обновления
+      if (lastUpdateTime > 0) {
+        setLastAutonomousUpdate(lastUpdateTime)
+      } else {
+        // Инициализируем автономный режим с текущим временем
+        startAutonomousMode()
+      }
     } catch (error) {
-      console.error("Error loading data from Supabase:", error)
+      console.error("Error loading ecosystem data from localStorage:", error)
+      // Даже при ошибке запускаем автономный режим
+      startAutonomousMode()
     }
   }, [])
 
-  // Load data on initial render
+  // Инициализация автономного режима
   useEffect(() => {
-    if (isInitialized) return
-    
-    const initializeData = async () => {
-      // Load data from Supabase
-      await loadDataFromSupabase()
-      
-      // Start autonomous mode
-      setIsAutonomousMode(true)
-      
-      // Mark as initialized
-      setIsInitialized(true)
-      console.log("EcosystemContext initialized")
-    }
-    
-    initializeData()
-  }, [loadDataFromSupabase, isInitialized])
-
-  // Subscribe to autonomous ecosystem updates
-  useEffect(() => {
+    // Подписываемся на обновления состояния от автономного сервиса
     const unsubscribe = autonomousEcosystemService.subscribe((newState) => {
+      // Обновляем пользовательские типы сущностей из нового состояния
       const customTypes = Object.keys(newState.counts).filter((type) => !Object.keys(initialEntities).includes(type))
       setCustomEntityTypes(customTypes)
       setLastAutonomousUpdate(Date.now())
@@ -192,19 +199,16 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
 
     return () => {
       unsubscribe()
+      // Останавливаем автономный режим при размонтировании
       autonomousEcosystemService.stop()
     }
   }, [])
 
-  // Public reload method
-  const reloadData = useCallback(async () => {
-    await loadDataFromSupabase()
-  }, [loadDataFromSupabase])
-
-  // Start autonomous mode
+  // Функция для запуска автономного режима
   const startAutonomousMode = useCallback(() => {
-    // Initialize with basic state
+    // Получаем текущее состояние экосистемы из хуков
     const currentState = {
+      // Базовое состояние экосистемы
       cycle: 1,
       environment: "tranquil" as EnvironmentType,
       environmentFrame: 0,
@@ -228,34 +232,60 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
       },
     }
 
+    // Инициализируем автономный сервис
     autonomousEcosystemService.initialize(currentState)
     setIsAutonomousMode(true)
     console.log("Autonomous mode started")
   }, [])
 
-  // Stop autonomous mode
+  // Функция для остановки автономного режима
   const stopAutonomousMode = useCallback(() => {
     autonomousEcosystemService.stop()
     setIsAutonomousMode(false)
     console.log("Autonomous mode stopped")
   }, [])
 
-  // Register callback for entity added event
+  // Сохраняем контекст в глобальной переменной для доступа из утилит
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.__ECOSYSTEM_CONTEXT__ = { entities }
+    }
+  }, [entities])
+
+  // Save data to localStorage whenever it changes
+  const saveToLocalStorage = useCallback(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          entities,
+          entityDescriptions,
+          entityProperties,
+          entityDisplayNames,
+          entityColorClasses,
+        }),
+      )
+    } catch (error) {
+      console.error("Error saving ecosystem data to localStorage:", error)
+    }
+  }, [entities, entityDescriptions, entityProperties, entityDisplayNames, entityColorClasses])
+
+  // Функция для регистрации колбэка при добавлении новой сущности
   const onEntityAdded = useCallback((callback: (entityType: string) => void) => {
     setEntityAddedCallbacks((prev) => [...prev, callback])
 
-    // Return unsubscribe function
+    // Возвращаем функцию для отписки
     return () => {
       setEntityAddedCallbacks((prev) => prev.filter((cb) => cb !== callback))
     }
   }, [])
 
-  // Get custom entity types
+  // Функция для получения списка пользовательских типов сущностей
   const getCustomEntityTypes = useCallback(() => {
     return customEntityTypes
   }, [customEntityTypes])
 
-  // Update an existing entity
+  // Function to update an existing entity
   const updateEntity = useCallback(
     (
       entityType: string,
@@ -318,12 +348,13 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
         }))
       }
 
-      console.log(`Entity ${entityType} updated in state`)
+      // In a real app, you would save to a database here
+      console.log(`Entity ${entityType} updated with:`, data)
     },
     [],
   )
 
-  // Add a new entity
+  // Function to add a new entity
   const addEntity = useCallback(
     (
       entityType: string,
@@ -368,11 +399,11 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
         [entityType]: data.className,
       }))
 
-      // Check if this is a new custom entity type
+      // Проверяем, является ли это новым пользовательским типом
       if (!Object.keys(initialEntities).includes(entityType) && !customEntityTypes.includes(entityType)) {
         setCustomEntityTypes((prev) => [...prev, entityType])
 
-        // Notify subscribers
+        // Уведомляем всех подписчиков о новой сущности
         entityAddedCallbacks.forEach((callback) => {
           try {
             callback(entityType)
@@ -382,93 +413,18 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
         })
       }
 
-      console.log(`Entity ${entityType} added to state`)
-      
-      // Save to database immediately
-      saveEntityToSupabase(
-        entityType, 
-        data.patterns, 
-        data.className, 
-        data.displayName, 
-        data.description, 
-        data.properties
-      )
+      // In a real app, you would save to a database here
+      console.log(`New entity ${entityType} added:`, data)
     },
     [entityAddedCallbacks, customEntityTypes],
   )
-  
-  // Function to save entity directly to Supabase
-  const saveEntityToSupabase = async (
-    entityType: string,
-    patterns: string[][],
-    className: string,
-    displayName: string,
-    description: string, 
-    properties: string[]
-  ) => {
-    try {
-      console.log(`Saving entity ${entityType} to Supabase...`)
-      
-      // Get current data and update with new entity
-      const updatedEntities = {
-        ...entities,
-        [entityType]: {
-          patterns,
-          className
-        }
-      }
-      
-      const updatedDisplayNames = {
-        ...entityDisplayNames,
-        [entityType]: displayName
-      }
-      
-      const updatedDescriptions = {
-        ...entityDescriptions,
-        [entityType]: description
-      }
-      
-      const updatedProperties = {
-        ...entityProperties,
-        [entityType]: properties
-      }
-      
-      const updatedColorClasses = {
-        ...entityColorClasses,
-        [entityType]: className
-      }
-      
-      // Save all data to Supabase
-      await entityService.saveAllEntityData(
-        updatedEntities,
-        updatedDescriptions,
-        updatedProperties,
-        updatedDisplayNames,
-        updatedColorClasses
-      )
-      
-      console.log(`Entity ${entityType} saved to Supabase`)
-    } catch (error) {
-      console.error(`Error saving entity ${entityType} to Supabase:`, error)
-    }
-  }
 
-  // Reload data when visiting wiki page
+  // Save to localStorage whenever data changes
   useEffect(() => {
-    if (!isInitialized) return
-    
-    const checkForWikiPage = async () => {
-      if (typeof window !== 'undefined' && window.location.pathname.includes('/wiki')) {
-        console.log('On wiki page, loading data from Supabase')
-        await loadDataFromSupabase()
-        console.log('Wiki page data load complete')
-      }
-    }
-    
-    checkForWikiPage()
-  }, [isInitialized, loadDataFromSupabase])
+    saveToLocalStorage()
+  }, [entities, entityDescriptions, entityProperties, entityDisplayNames, entityColorClasses, saveToLocalStorage])
 
-  // Create context value
+  // Memoize the context value to avoid unnecessary re-renders
   const contextValue = useMemo(
     () => ({
       entities,
@@ -480,11 +436,11 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
       addEntity,
       onEntityAdded,
       getCustomEntityTypes,
+      // Добавляем новые методы для автономного режима
       startAutonomousMode,
       stopAutonomousMode,
       isAutonomousModeActive,
       lastAutonomousUpdate,
-      reloadData
     }),
     [
       entities,
@@ -500,7 +456,6 @@ export function EcosystemProvider({ children }: { children: ReactNode }) {
       stopAutonomousMode,
       isAutonomousModeActive,
       lastAutonomousUpdate,
-      reloadData
     ],
   )
 
@@ -515,3 +470,4 @@ export function useEcosystem() {
   }
   return context
 }
+

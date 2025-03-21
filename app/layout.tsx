@@ -2,12 +2,11 @@ import type React from "react"
 import "./globals.css"
 import type { Metadata } from "next"
 import { EcosystemProvider } from "@/context/ecosystem-context"
-import SupabaseProvider from "@/components/supabase-provider"
 
 export const metadata: Metadata = {
   title: "Luminous Ecosystem",
   description: "An interactive digital ecosystem with an eccentric professor",
-  generator: 'v0.dev'
+    generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -18,10 +17,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <SupabaseProvider>
-          <EcosystemProvider>{children}</EcosystemProvider>
-        </SupabaseProvider>
+        <EcosystemProvider>{children}</EcosystemProvider>
       </body>
     </html>
   )
 }
+
+
+
+import './globals.css'

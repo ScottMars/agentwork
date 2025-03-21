@@ -1,12 +1,12 @@
 "use client"
 
 import type React from "react"
+
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEcosystem } from "@/context/ecosystem-context"
 import { useAgentInteraction } from "@/hooks/use-agent-interaction"
-import entityService from "@/services/entity-service"
 
 export default function AdminPage() {
   const router = useRouter()
@@ -18,7 +18,6 @@ export default function AdminPage() {
     entityColorClasses,
     updateEntity,
     addEntity,
-    reloadData
   } = useEcosystem()
 
   const { isGenerating, generationError, debugInfo, requestForcedEntityGeneration } = useAgentInteraction()
@@ -124,51 +123,6 @@ export default function AdminPage() {
           properties: formData.properties,
         })
 
-        // Save directly to Supabase
-        try {
-          // Get current data
-          const updatedEntities = {
-            ...entities,
-            [formData.entityType]: {
-              patterns: [patternArray],
-              className: formData.colorClass,
-            },
-          }
-          
-          const updatedDisplayNames = {
-            ...entityDisplayNames,
-            [formData.entityType]: formData.entityName,
-          }
-          
-          const updatedDescriptions = {
-            ...entityDescriptions,
-            [formData.entityType]: formData.description,
-          }
-          
-          const updatedProperties = {
-            ...entityProperties,
-            [formData.entityType]: formData.properties,
-          }
-          
-          const updatedColorClasses = {
-            ...entityColorClasses,
-            [formData.entityType]: formData.colorClass,
-          }
-          
-          // Save all data to Supabase
-          await entityService.saveAllEntityData(
-            updatedEntities,
-            updatedDescriptions,
-            updatedProperties,
-            updatedDisplayNames,
-            updatedColorClasses
-          )
-          
-          console.log("Entity data saved to Supabase")
-        } catch (error) {
-          console.error("Error saving entity to Supabase:", error)
-        }
-
         setMessage("Entity successfully added to the Wiki!")
       } else if (mode === "edit" && selectedEntity) {
         // Update existing entity
@@ -179,52 +133,6 @@ export default function AdminPage() {
           description: formData.description,
           properties: formData.properties,
         })
-
-        // Save directly to Supabase
-        try {
-          // Get current data
-          const updatedEntities = {
-            ...entities,
-            [selectedEntity]: {
-              ...entities[selectedEntity],
-              patterns: [patternArray],
-              className: formData.colorClass,
-            },
-          }
-          
-          const updatedDisplayNames = {
-            ...entityDisplayNames,
-            [selectedEntity]: formData.entityName,
-          }
-          
-          const updatedDescriptions = {
-            ...entityDescriptions,
-            [selectedEntity]: formData.description,
-          }
-          
-          const updatedProperties = {
-            ...entityProperties,
-            [selectedEntity]: formData.properties,
-          }
-          
-          const updatedColorClasses = {
-            ...entityColorClasses,
-            [selectedEntity]: formData.colorClass,
-          }
-          
-          // Save all data to Supabase
-          await entityService.saveAllEntityData(
-            updatedEntities,
-            updatedDescriptions,
-            updatedProperties,
-            updatedDisplayNames,
-            updatedColorClasses
-          )
-          
-          console.log("Updated entity data saved to Supabase")
-        } catch (error) {
-          console.error("Error saving updated entity to Supabase:", error)
-        }
 
         setMessage("Entity successfully updated!")
       }
@@ -244,9 +152,6 @@ export default function AdminPage() {
         })
       }
 
-      // Reload data from Supabase
-      await reloadData()
-
       // Hide success message after 3 seconds
       setTimeout(() => {
         setShowSuccessMessage(false)
@@ -258,20 +163,21 @@ export default function AdminPage() {
     }
   }
 
-  // Handler for force creating a new entity
+  // Функция для обработки нажатия на кнопку принудительного создания нового объекта
   const handleForceCreateEntity = () => {
     setGenerationStatus("loading")
     setGenerationError2(null)
     setShowDebugInfo(true)
 
+    // Запрашиваем создание нового объекта
     requestForcedEntityGeneration(
-      // Success handler
-      async (entityData) => {
+      // Обработчик успешного создания
+      (entityData) => {
         try {
-          // Convert ASCII art to array of strings
+          // Конвертируем ASCII-арт в массив строк
           const pattern = entityData.asciiArt.split("\n").map((line: string) => line || " ")
 
-          // Generate random color if not specified
+          // Генерируем случайный цвет, если не указан
           const colorClasses = [
             "text-[#7fdbff]",
             "text-[#ff7fdb]",
@@ -280,77 +186,26 @@ export default function AdminPage() {
             "text-[#ffffff]",
           ]
           const colorClass = entityData.colorClass || colorClasses[Math.floor(Math.random() * colorClasses.length)]
-          
-          const entityType = entityData.entityType.toLowerCase()
-          const properties = entityData.properties || [
-            "Generated entity",
-            "Unique properties",
-            "Special attributes",
-          ]
 
-          // Add entity to context
-          addEntity(entityType, {
+          // Добавляем новый тип сущности в контекст экосистемы
+          addEntity(entityData.entityType.toLowerCase(), {
             patterns: [pattern],
             className: colorClass,
             displayName: entityData.displayName,
             description: entityData.description,
-            properties: properties,
+            properties: entityData.properties || [
+              "Административное создание",
+              "Уникальная сущность",
+              "Специальные свойства",
+            ],
           })
-          
-          // Save directly to Supabase
-          try {
-            // Get current data
-            const updatedEntities = {
-              ...entities,
-              [entityType]: {
-                patterns: [pattern],
-                className: colorClass,
-              },
-            }
-            
-            const updatedDisplayNames = {
-              ...entityDisplayNames,
-              [entityType]: entityData.displayName,
-            }
-            
-            const updatedDescriptions = {
-              ...entityDescriptions,
-              [entityType]: entityData.description,
-            }
-            
-            const updatedProperties = {
-              ...entityProperties,
-              [entityType]: properties,
-            }
-            
-            const updatedColorClasses = {
-              ...entityColorClasses,
-              [entityType]: colorClass,
-            }
-            
-            // Save all data to Supabase
-            await entityService.saveAllEntityData(
-              updatedEntities,
-              updatedDescriptions,
-              updatedProperties,
-              updatedDisplayNames,
-              updatedColorClasses
-            )
-            
-            console.log("Generated entity data saved to Supabase")
 
-            // Reload data from Supabase
-            await reloadData()
-          } catch (error) {
-            console.error("Error saving generated entity to Supabase:", error)
-          }
-
-          // Update status and show success message
+          // Обновляем статус и показываем сообщение об успехе
           setGenerationStatus("success")
-          setMessage(`New entity "${entityData.displayName}" successfully created!`)
+          setMessage(`Новая сущность "${entityData.displayName}" успешно создана!`)
           setShowSuccessMessage(true)
 
-          // Hide success message after 3 seconds
+          // Скрываем сообщение об успехе через 3 секунды
           setTimeout(() => {
             setShowSuccessMessage(false)
             setGenerationStatus("idle")
@@ -358,11 +213,11 @@ export default function AdminPage() {
         } catch (error) {
           setGenerationStatus("error")
           setGenerationError2(
-            `Error processing entity data: ${error instanceof Error ? error.message : String(error)}`,
+            `Ошибка при обработке данных сущности: ${error instanceof Error ? error.message : String(error)}`,
           )
         }
       },
-      // Error handler
+      // Обработчик ошибки
       (error) => {
         setGenerationStatus("error")
         setGenerationError2(error)
@@ -370,10 +225,10 @@ export default function AdminPage() {
     )
   }
 
-  // Handler for creating a simple entity
-  const handleCreateSimpleEntity = async () => {
+  // Функция для создания простой сущности без запроса к агенту
+  const handleCreateSimpleEntity = () => {
     try {
-      // Create simple entity with predefined data
+      // Создаем простую сущность с предопределенными данными
       const entityType = "nexus"
       const displayName = "Nexus Point"
       const description =
@@ -381,76 +236,28 @@ export default function AdminPage() {
       const properties = ["Energy conduit", "Dimensional anchor", "Resonance amplifier"]
       const asciiArt = "  *  \n /|\\ \n/ | \\\n  |  \n / \\ \n/   \\"
 
-      // Convert ASCII art to array of strings
+      // Конвертируем ASCII-арт в массив строк
       const pattern = asciiArt.split("\n").map((line) => line || " ")
 
-      // Add entity to context
+      // Добавляем новый тип сущности в контекст экосистемы
       addEntity(entityType, {
         patterns: [pattern],
-        className: "text-[#ffa500]", // Orange color
+        className: "text-[#ffa500]", // Оранжевый цвет
         displayName,
         description,
         properties,
       })
-      
-      // Save directly to Supabase
-      try {
-        // Get current data
-        const updatedEntities = {
-          ...entities,
-          [entityType]: {
-            patterns: [pattern],
-            className: "text-[#ffa500]",
-          },
-        }
-        
-        const updatedDisplayNames = {
-          ...entityDisplayNames,
-          [entityType]: displayName,
-        }
-        
-        const updatedDescriptions = {
-          ...entityDescriptions,
-          [entityType]: description,
-        }
-        
-        const updatedProperties = {
-          ...entityProperties,
-          [entityType]: properties,
-        }
-        
-        const updatedColorClasses = {
-          ...entityColorClasses,
-          [entityType]: "text-[#ffa500]",
-        }
-        
-        // Save all data to Supabase
-        await entityService.saveAllEntityData(
-          updatedEntities,
-          updatedDescriptions,
-          updatedProperties,
-          updatedDisplayNames,
-          updatedColorClasses
-        )
-        
-        console.log("Simple entity data saved to Supabase")
 
-        // Reload data from Supabase
-        await reloadData()
-      } catch (error) {
-        console.error("Error saving simple entity to Supabase:", error)
-      }
-
-      // Show success message
-      setMessage(`Simple entity "${displayName}" successfully created!`)
+      // Показываем сообщение об успехе
+      setMessage(`Простая сущность "${displayName}" успешно создана!`)
       setShowSuccessMessage(true)
 
-      // Hide success message after 3 seconds
+      // Скрываем сообщение об успехе через 3 секунды
       setTimeout(() => {
         setShowSuccessMessage(false)
       }, 3000)
     } catch (error) {
-      setMessage(`Error creating simple entity: ${error instanceof Error ? error.message : String(error)}`)
+      setMessage(`Ошибка при создании простой сущности: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -494,15 +301,16 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Create entity buttons */}
+        {/* Кнопки принудительного создания нового объекта */}
         <div className="mb-6 bg-[#0e2b36] border border-[#3a7c8c] p-4 rounded-lg shadow-[0_0_15px_rgba(0,0,0,0.3)]">
           <h2 className="text-xl font-bold mb-4">Administrative Actions</h2>
 
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-[#7fdbff]">Create New Entity</h3>
+              <h3 className="text-lg font-semibold text-[#7fdbff]">Force Create New Entity</h3>
               <p className="text-sm opacity-80 mb-2">
-                Create a new entity type for the ecosystem.
+                Request the Etheric Guardian to create a completely new entity type. This action will bypass normal
+                ecosystem constraints.
               </p>
             </div>
             <div className="flex gap-2">
@@ -536,7 +344,7 @@ export default function AdminPage() {
                     Generating...
                   </span>
                 ) : (
-                  "Generate New Entity"
+                  "Force Create New Entity"
                 )}
               </button>
 
@@ -549,12 +357,12 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Generation error message */}
+          {/* Сообщение об ошибке при генерации */}
           {generationStatus === "error" && generationError2 && (
             <div className="mt-2 p-2 bg-[#3a1c1c] text-[#ff7f7f] rounded text-sm">Error: {generationError2}</div>
           )}
 
-          {/* Debug info */}
+          {/* Отладочная информация */}
           {showDebugInfo && debugInfo && (
             <div className="mt-2 p-2 bg-[#0a1a1f] text-[#7fdbff] rounded text-xs font-mono whitespace-pre-wrap">
               <div className="flex justify-between items-center mb-1">
@@ -621,7 +429,7 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* Entity form */}
+          {/* Form (shown in add mode or when an entity is selected in edit mode) */}
           {(mode === "add" || (mode === "edit" && selectedEntity)) && (
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -736,7 +544,7 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* Preview section */}
+        {/* Preview section (shown in add mode or when an entity is selected in edit mode) */}
         {(mode === "add" || (mode === "edit" && selectedEntity)) && (
           <div className="mt-6 p-4 bg-[#0a1a1f] border border-[#3a7c8c] rounded">
             <h3 className="text-lg font-bold mb-2">ASCII Art Preview</h3>
@@ -750,3 +558,4 @@ export default function AdminPage() {
     </div>
   )
 }
+

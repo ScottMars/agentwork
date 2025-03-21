@@ -1,12 +1,8 @@
 import type { EcosystemState } from "@/types/ecosystem"
-import { supabase } from "@/lib/supabase"
 
-// Таблицы Supabase для хранения данных экосистемы
-const ECOSYSTEM_STATE_TABLE = "ecosystem_state"
-const LAST_UPDATE_TABLE = "ecosystem_update"
-
-// Ключ для идентификации состояния в Supabase
-const STATE_KEY = "main_state"
+// Ключ для хранения состояния в localStorage
+const ECOSYSTEM_STATE_KEY = "luminous-ecosystem-state"
+const LAST_UPDATE_KEY = "luminous-ecosystem-last-update"
 
 // Интервал автоматического сохранения (в миллисекундах)
 const AUTO_SAVE_INTERVAL = 30000 // 30 секунд
@@ -19,7 +15,7 @@ class AutonomousEcosystemService {
   private autoSaveInterval: NodeJS.Timeout | null = null
 
   // Инициализация сервиса
-  public async initialize(initialState: EcosystemState): Promise<void> {
+  public initialize(initialState: EcosystemState): void {
     if (this.isInitialized) return
 
     try {
@@ -34,8 +30,8 @@ class AutonomousEcosystemService {
           // Настраиваем обработчик сообщений от воркера
           this.worker.onmessage = this.handleWorkerMessage.bind(this)
 
-          // Загружаем сохраненное состояние из Supabase или используем начальное
-          const savedState = await this.loadState()
+          // Загружаем сохраненное состояние или используем начальное
+          const savedState = this.loadState()
           const state = savedState || initialState
 
           // Инициализируем воркер
@@ -131,150 +127,51 @@ class AutonomousEcosystemService {
     }
   }
 
-  // Сохранение состояния в Supabase
-  public async saveState(state: EcosystemState): Promise<void> {
+  // Сохранение состояния в localStorage
+  public saveState(state: EcosystemState): void {
     try {
-      // Сохраняем состояние в Supabase
-      const { error: stateError } = await supabase
-        .from(ECOSYSTEM_STATE_TABLE)
-        .upsert(
-          {
-            id: STATE_KEY,
-            state: state,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'id' }
-        )
-
-      if (stateError) throw stateError
-
-      // Обновляем время последнего обновления
-      const { error: updateError } = await supabase
-        .from(LAST_UPDATE_TABLE)
-        .upsert(
-          {
-            id: STATE_KEY,
-            last_update: Date.now(),
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'id' }
-        )
-
-      if (updateError) throw updateError
-
+      localStorage.setItem(ECOSYSTEM_STATE_KEY, JSON.stringify(state))
+      localStorage.setItem(LAST_UPDATE_KEY, Date.now().toString())
       this.lastSaveTime = Date.now()
-      console.log("Ecosystem state saved to Supabase")
+      console.log("Ecosystem state saved")
     } catch (error) {
-      console.error("Failed to save ecosystem state to Supabase:", error)
-      
-      // Fallback to localStorage if Supabase fails
-      try {
-        localStorage.setItem("luminous-ecosystem-state", JSON.stringify(state))
-        localStorage.setItem("luminous-ecosystem-last-update", Date.now().toString())
-        console.log("Ecosystem state saved to localStorage (fallback)")
-      } catch (localError) {
-        console.error("Failed to save ecosystem state to localStorage (fallback):", localError)
-      }
+      console.error("Failed to save ecosystem state:", error)
     }
   }
 
-  // Загрузка состояния из Supabase
-  public async loadState(): Promise<EcosystemState | null> {
+  // Загрузка состояния из localStorage
+  public loadState(): EcosystemState | null {
     try {
-      // Загружаем состояние из Supabase
-      const { data, error } = await supabase
-        .from(ECOSYSTEM_STATE_TABLE)
-        .select('state')
-        .eq('id', STATE_KEY)
-        .single()
+      const stateJson = localStorage.getItem(ECOSYSTEM_STATE_KEY)
+      if (!stateJson) return null
 
-      if (error) throw error
-
-      if (data && data.state) {
-        console.log("Ecosystem state loaded from Supabase")
-        return data.state as EcosystemState
-      }
-      
+      const state = JSON.parse(stateJson) as EcosystemState
+      console.log("Ecosystem state loaded")
+      return state
+    } catch (error) {
+      console.error("Failed to load ecosystem state:", error)
       return null
-    } catch (error) {
-      console.error("Failed to load ecosystem state from Supabase:", error)
-      
-      // Fallback to localStorage if Supabase fails
-      try {
-        const stateJson = localStorage.getItem("luminous-ecosystem-state")
-        if (!stateJson) return null
-
-        const state = JSON.parse(stateJson) as EcosystemState
-        console.log("Ecosystem state loaded from localStorage (fallback)")
-        return state
-      } catch (localError) {
-        console.error("Failed to load ecosystem state from localStorage (fallback):", localError)
-        return null
-      }
     }
   }
 
-  // Получение времени последнего обновления из Supabase
-  public async getLastUpdateTime(): Promise<number> {
+  // Получение времени последнего обновления
+  public getLastUpdateTime(): number {
     try {
-      // Загружаем время последнего обновления из Supabase
-      const { data, error } = await supabase
-        .from(LAST_UPDATE_TABLE)
-        .select('last_update')
-        .eq('id', STATE_KEY)
-        .single()
-
-      if (error) throw error
-
-      if (data && data.last_update) {
-        return data.last_update
-      }
-      
+      const lastUpdate = localStorage.getItem(LAST_UPDATE_KEY)
+      return lastUpdate ? Number.parseInt(lastUpdate, 10) : 0
+    } catch {
       return 0
-    } catch (error) {
-      console.error("Failed to get last update time from Supabase:", error)
-      
-      // Fallback to localStorage if Supabase fails
-      try {
-        const lastUpdate = localStorage.getItem("luminous-ecosystem-last-update")
-        return lastUpdate ? Number.parseInt(lastUpdate, 10) : 0
-      } catch {
-        return 0
-      }
     }
   }
 
-  // Очистка сохраненного состояния в Supabase
-  public async clearSavedState(): Promise<void> {
+  // Очистка сохраненного состояния
+  public clearSavedState(): void {
     try {
-      // Удаляем состояние из Supabase
-      const { error: stateError } = await supabase
-        .from(ECOSYSTEM_STATE_TABLE)
-        .delete()
-        .eq('id', STATE_KEY)
-
-      if (stateError) throw stateError
-
-      // Удаляем время последнего обновления
-      const { error: updateError } = await supabase
-        .from(LAST_UPDATE_TABLE)
-        .delete()
-        .eq('id', STATE_KEY)
-
-      if (updateError) throw updateError
-
-      console.log("Saved ecosystem state cleared from Supabase")
+      localStorage.removeItem(ECOSYSTEM_STATE_KEY)
+      localStorage.removeItem(LAST_UPDATE_KEY)
+      console.log("Saved ecosystem state cleared")
     } catch (error) {
-      console.error("Failed to clear saved ecosystem state from Supabase:", error)
-      
-      // Fallback to localStorage if Supabase fails
-      try {
-        localStorage.removeItem("luminous-ecosystem-state")
-        localStorage.removeItem("luminous-ecosystem-last-update")
-        console.log("Saved ecosystem state cleared from localStorage (fallback)")
-      } catch (localError) {
-        console.error("Failed to clear saved ecosystem state from localStorage (fallback):", localError)
-      }
+      console.error("Failed to clear saved ecosystem state:", error)
     }
   }
 

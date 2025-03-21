@@ -5,10 +5,10 @@ import { useEcosystem } from "@/hooks/use-ecosystem"
 import { EcosystemDisplay } from "@/components/ecosystem-display"
 import { ControlPanel } from "@/components/control-panel"
 import { ParametersDisplay } from "@/components/parameters-display"
-import { Codex } from "@/components/codex"
 import { GuardianStatus } from "@/components/guardian-status"
 import { ChatInterface } from "@/components/chat-interface"
 import type { GuardianMood } from "@/constants/ecosystem"
+import { CodexDisplay } from "../frontend/components/CodexDisplay"
 // Добавьте импорт компонента AutonomousStatus
 import { AutonomousStatus } from "@/components/autonomous-status"
 
@@ -54,7 +54,7 @@ export default function LuminousEcosystem() {
           <AutonomousStatus />
           <ControlPanel {...controlPanelProps} />
           <ParametersDisplay state={state} />
-          <Codex state={state} />
+          <CodexDisplay />
         </div>
       </div>
 
