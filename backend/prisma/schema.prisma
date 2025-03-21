@@ -37,4 +37,13 @@ model GuardianTrait {
   updatedAt DateTime @updatedAt
 
   @@index([type])
+}
+
+model Codex {
+  id         String   @id @default(uuid())
+  cycle      Int
+  content    String
+  created_at DateTime @default(now())
+
+  @@index([cycle])
 } 

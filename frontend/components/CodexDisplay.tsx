@@ -43,7 +43,7 @@ export function CodexDisplay() {
 
     async function fetchEntries() {
         try {
-            const response = await fetch('http://localhost:3001/api/codex');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/codex`);
             if (!response.ok) throw new Error('Failed to fetch codex entries');
             const data = await response.json();
             // Сортируем записи по убыванию номера цикла
